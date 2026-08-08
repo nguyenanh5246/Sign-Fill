@@ -5,6 +5,23 @@ VisualStudioVersion = 17.14.36518.9 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sign Fill", "Sign Fill.csproj", "{BBC0BE5C-CE79-4948-9CAF-1F45B9A9DEE2}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Models", "Models", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		DataRow.cs = DataRow.cs
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{47087F1F-91AC-4DB6-9B78-E3E63234B054}"
+	ProjectSection(SolutionItems) = preProject
+		BatchGenerator.cs = BatchGenerator.cs
+		ExcelReader.cs = ExcelReader.cs
+		FileNameGenerator.cs = FileNameGenerator.cs
+		FileResolver.cs = FileResolver.cs
+		FolderManager.cs = FolderManager.cs
+		TemplateParser.cs = TemplateParser.cs
+		ValidationService.cs = ValidationService.cs
+		WordGenerator.cs = WordGenerator.cs
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
