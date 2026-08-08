@@ -16,9 +16,13 @@ public partial class MainWindow : Window
 
     private void TestGenerate()
     {
-        string templatePath = "template_table.docx"; // file Word template có chứa placeholder {{SIGNER_1}}, {{SIGNER_2}}, ...
         string namesPath = "names.txt"; // file chứa danh sách tên, mỗi tên trên một dòng
-        string outputPath = "output_table.docx"; // file kết quả sau khi fill
+
+        string templatePath1 = "template.docx"; // file Word template có chứa placeholder {{SIGNER_1}}, {{SIGNER_2}}, ...
+        string outputPath1 = "output_paragraph.docx"; // file kết quả sau khi fill
+
+        string templatePath2 = "template_table.docx"; // file Word template có chứa placeholder {{SIGNER_1}}, {{SIGNER_2}}, ...
+        string outputPath2 = "output_table.docx"; // file kết quả sau khi fill
 
         List<string> names = File
             .ReadAllLines(namesPath)
@@ -28,13 +32,19 @@ public partial class MainWindow : Window
         Sign_Fill.WordTemplateEngine engine = new();
 
         engine.Generate(
-            templatePath,
-            outputPath,
+            templatePath1,
+            outputPath1,
+            names
+        );
+
+        engine.Generate(
+            templatePath2,
+            outputPath2,
             names
         );
 
         MessageBox.Show(
-            "Đã tạo file:\n" + outputPath,
+            "Đã tạo file:\n" + outputPath1 + "," + outputPath2,
             "SignFill"
         );
     }

@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -25,7 +26,6 @@ public class WordTemplateEngine
                 nameof(names));
         }
 
-        // Tạo bản sao từ template
         File.Copy(templatePath, outputPath, true);
 
         using WordprocessingDocument document =
@@ -41,13 +41,11 @@ public class WordTemplateEngine
 
         var body = document.MainDocumentPart.Document.Body;
 
-        // Thay placeholder trong toàn bộ paragraph (bao gồm cả paragraph nằm trong table)
         foreach (var paragraph in body.Descendants<Paragraph>())
         {
             ReplaceInParagraph(paragraph, names);
         }
 
-        // Lưu tài liệu
         document.MainDocumentPart.Document.Save();
     }
 
@@ -56,24 +54,127 @@ public class WordTemplateEngine
         Paragraph paragraph,
         List<string> names)
     {
-        foreach (var run in paragraph.Elements<Run>())
-        {
-            var text = run.GetFirstChild<Text>();
+        var runs = paragraph.Elements<Run>().ToList();
 
-            if (text == null)
+        if (runs.Count == 0)
+            return;
+
+        var texts = new List<Text?>();
+
+        foreach (var run in runs)
+        {
+            texts.Add(run.GetFirstChild<Text>());
+        }
+
+        for (int nameIndex = 0;
+             nameIndex < names.Count;
+             nameIndex++)
+        {
+            string placeholder =
+                $"{{{{SIGNER_{nameIndex + 1}}}}}";
+
+            int startRun = -1;
+            int startChar = -1;
+
+            int currentPosition = 0;
+
+            StringBuilder combinedText = new();
+
+            foreach (var text in texts)
+            {
+                if (text != null)
+                {
+                    combinedText.Append(text.Text);
+                }
+            }
+
+            string fullText = combinedText.ToString();
+
+            int placeholderPosition =
+                fullText.IndexOf(placeholder,
+                    StringComparison.Ordinal);
+
+            if (placeholderPosition < 0)
                 continue;
 
-            for (int i = 0; i < names.Count; i++)
-            {
-                string placeholder =
-                    $"{{{{SIGNER_{i + 1}}}}}";
+            // Tìm Run chứa ký tự đầu tiên của placeholder
+            int position = 0;
 
-                if (text.Text.Contains(placeholder))
+            for (int i = 0; i < texts.Count; i++)
+            {
+                string runText = texts[i]?.Text ?? "";
+
+                if (placeholderPosition >= position &&
+                    placeholderPosition < position + runText.Length)
                 {
-                    text.Text = text.Text.Replace(
-                        placeholder,
-                        names[i]);
+                    startRun = i;
+                    startChar = placeholderPosition - position;
+                    break;
                 }
+
+                position += runText.Length;
+            }
+
+            if (startRun < 0)
+                continue;
+
+            int remaining =
+                placeholder.Length;
+
+            // Vị trí bắt đầu của placeholder
+            int runIndex = startRun;
+            int charIndex = startChar;
+
+            while (remaining > 0 &&
+                   runIndex < texts.Count)
+            {
+                Text? text = texts[runIndex];
+
+                if (text == null)
+                {
+                    runIndex++;
+                    charIndex = 0;
+                    continue;
+                }
+
+                string value = text.Text;
+
+                int available =
+                    value.Length - charIndex;
+
+                int removeCount =
+                    Math.Min(remaining, available);
+
+                string before =
+                    value.Substring(0, charIndex);
+
+                string after =
+                    value.Substring(
+                        charIndex + removeCount);
+
+                text.Text = before + after;
+
+                remaining -= removeCount;
+
+                runIndex++;
+                charIndex = 0;
+            }
+
+            // Chèn tên vào Run chứa ký tự đầu tiên
+            Text? targetText =
+                texts[startRun];
+
+            if (targetText != null)
+            {
+                string current = targetText.Text;
+
+                int insertPosition =
+                    startChar;
+
+                targetText.Text =
+                    current.Insert(
+                        insertPosition,
+                        names[nameIndex]);
             }
         }
     }
