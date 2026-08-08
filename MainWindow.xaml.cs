@@ -16,16 +16,16 @@ public partial class MainWindow : Window
 
     private void TestGenerate()
     {
-        string templatePath = "template.docx";
-        string namesPath = "names.txt";
-        string outputPath = "output.docx";
+        string templatePath = "template_table.docx"; // file Word template có chứa placeholder {{SIGNER_1}}, {{SIGNER_2}}, ...
+        string namesPath = "names.txt"; // file chứa danh sách tên, mỗi tên trên một dòng
+        string outputPath = "output_table.docx"; // file kết quả sau khi fill
 
         List<string> names = File
             .ReadAllLines(namesPath)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .ToList();
 
-        SignFill.WordTemplateEngine engine = new();
+        Sign_Fill.WordTemplateEngine engine = new();
 
         engine.Generate(
             templatePath,

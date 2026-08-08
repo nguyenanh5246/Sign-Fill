@@ -2,7 +2,7 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
-namespace SignFill;
+namespace Sign_Fill;
 
 public class WordTemplateEngine
 {
@@ -11,44 +11,70 @@ public class WordTemplateEngine
         string outputPath,
         List<string> names)
     {
+        if (!File.Exists(templatePath))
+        {
+            throw new FileNotFoundException(
+                "Không tìm thấy file Word template.",
+                templatePath);
+        }
+
+        if (names == null || names.Count == 0)
+        {
+            throw new ArgumentException(
+                "Danh sách tên đang trống.",
+                nameof(names));
+        }
+
+        // Tạo bản sao từ template
         File.Copy(templatePath, outputPath, true);
 
         using WordprocessingDocument document =
             WordprocessingDocument.Open(outputPath, true);
 
-        if (document.MainDocumentPart == null || document.MainDocumentPart.Document?.Body == null)
-            throw new InvalidDataException("The Word document is missing a main document part or body.");
+        if (document.MainDocumentPart == null ||
+            document.MainDocumentPart.Document == null ||
+            document.MainDocumentPart.Document.Body == null)
+        {
+            throw new InvalidDataException(
+                "File Word không có MainDocumentPart hoặc Body.");
+        }
 
         var body = document.MainDocumentPart.Document.Body;
 
-        int index = 1;
-
-        foreach (var paragraph in body.Elements<Paragraph>())
+        // Thay placeholder trong toàn bộ paragraph (bao gồm cả paragraph nằm trong table)
+        foreach (var paragraph in body.Descendants<Paragraph>())
         {
-            foreach (var run in paragraph.Elements<Run>())
+            ReplaceInParagraph(paragraph, names);
+        }
+
+        // Lưu tài liệu
+        document.MainDocumentPart.Document.Save();
+    }
+
+
+    private void ReplaceInParagraph(
+        Paragraph paragraph,
+        List<string> names)
+    {
+        foreach (var run in paragraph.Elements<Run>())
+        {
+            var text = run.GetFirstChild<Text>();
+
+            if (text == null)
+                continue;
+
+            for (int i = 0; i < names.Count; i++)
             {
-                var text = run.GetFirstChild<Text>();
-
-                if (text == null)
-                    continue;
-
-                string placeholder = $"{{{{SIGNER_{index}}}}}";
+                string placeholder =
+                    $"{{{{SIGNER_{i + 1}}}}}";
 
                 if (text.Text.Contains(placeholder))
                 {
                     text.Text = text.Text.Replace(
                         placeholder,
-                        names[index - 1]
-                    );
-
-                    index++;
-
-                    if (index > names.Count)
-                        return;
+                        names[i]);
                 }
             }
         }
-
-        document.MainDocumentPart.Document.Save();
     }
 }
