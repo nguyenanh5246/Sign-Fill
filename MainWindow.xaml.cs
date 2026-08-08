@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Sign_Fill;
 
@@ -15,6 +16,13 @@ public partial class MainWindow : Window
     private readonly TemplateParser _templateParser;
     private readonly ValidationService _validationService;
     private readonly BatchGenerator _batchGenerator;
+    private DateTime _lastExcelWriteTime = DateTime.MinValue;
+    private DateTime _lastTemplateWriteTime = DateTime.MinValue;
+
+    // Check file existence every 500ms to update the status in real-time.
+    private readonly DispatcherTimer _fileCheckTimer;
+    private bool _lastExcelFound;
+    private bool _lastTemplateFound;
 
     public MainWindow()
     {
@@ -29,9 +37,38 @@ public partial class MainWindow : Window
         _batchGenerator = new BatchGenerator();
 
         CheckInputFiles();
+
+        try
+        {
+            _fileResolver.GetExcelFile();
+            _lastExcelFound = true;
+        }
+        catch
+        {
+            _lastExcelFound = false;
+        }
+
+        try
+        {
+            _fileResolver.GetTemplateFile();
+            _lastTemplateFound = true;
+        }
+        catch
+        {
+            _lastTemplateFound = false;
+        }
+
         LoadAvailableFields();
+
+        _fileCheckTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+
+        _fileCheckTimer.Tick += FileCheckTimer_Tick;
+        _fileCheckTimer.Start();
     }
-    private void CheckInputFiles()
+    private (bool excelFound, bool templateFound) CheckInputFiles()
     {
         bool excelFound = false;
         bool templateFound = false;
@@ -86,6 +123,7 @@ public partial class MainWindow : Window
         {
             FieldPanel.Children.Clear();
         }
+        return (excelFound, templateFound);
     }
 
     private void GenerateButton_Click(
@@ -228,5 +266,84 @@ public partial class MainWindow : Window
             selectionStart + field.Length;
 
         FileNamePatternTextBox.Focus();
+    }
+    private void RefreshFileStatus()
+    {
+        // =========================
+        // CHECK EXCEL
+        // =========================
+
+        try
+        {
+            string excelPath =
+                _fileResolver.GetExcelFile();
+
+            DateTime writeTime =
+                File.GetLastWriteTime(excelPath);
+
+            // Excel mới xuất hiện hoặc bị thay đổi
+            if (!_lastExcelFound ||
+                writeTime != _lastExcelWriteTime)
+            {
+                _lastExcelFound = true;
+                _lastExcelWriteTime = writeTime;
+
+                CheckInputFiles();
+                LoadAvailableFields();
+            }
+        }
+        catch
+        {
+            // Excel đã bị xóa
+            if (_lastExcelFound)
+            {
+                _lastExcelFound = false;
+                _lastExcelWriteTime = DateTime.MinValue;
+
+                CheckInputFiles();
+                FieldPanel.Children.Clear();
+            }
+        }
+
+
+        // =========================
+        // CHECK TEMPLATE
+        // =========================
+
+        try
+        {
+            string templatePath =
+                _fileResolver.GetTemplateFile();
+
+            DateTime writeTime =
+                File.GetLastWriteTime(templatePath);
+
+            // Template mới xuất hiện hoặc bị thay đổi
+            if (!_lastTemplateFound ||
+                writeTime != _lastTemplateWriteTime)
+            {
+                _lastTemplateFound = true;
+                _lastTemplateWriteTime = writeTime;
+
+                CheckInputFiles();
+            }
+        }
+        catch
+        {
+            // Template đã bị xóa
+            if (_lastTemplateFound)
+            {
+                _lastTemplateFound = false;
+                _lastTemplateWriteTime = DateTime.MinValue;
+
+                CheckInputFiles();
+            }
+        }
+    }
+    private void FileCheckTimer_Tick(
+    object? sender,
+    EventArgs e)
+    {
+        RefreshFileStatus();
     }
 }
